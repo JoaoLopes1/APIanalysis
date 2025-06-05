@@ -1,0 +1,49 @@
+[
+  {
+    "review_id": "rev_001",
+    "analysis": {
+      "sentiment": "positive",
+      "key_topics": [
+        "ui",
+        "stability",
+        "payment"
+      ],
+      "response_recommendation": "Thank you for your positive feedback! Our team is investigating the stability issues and working on a fix.",
+      "urgency_score": 2
+    },
+    "confidence_scores": {
+      "sentiment": 0.7125,
+      "topic_accuracy": 0.85
+    }
+  },
+  {
+    "review_id": "rev_002",
+    "analysis": {
+      "sentiment": "mixed",
+      "key_topics": [
+        "performance"
+      ],
+      "response_recommendation": "Thank you for your feedback. We're continuously working on improving the app's performance.",
+      "urgency_score": 2
+    },
+    "confidence_scores": {
+      "sentiment": 0.011666666666666686,
+      "topic_accuracy": 0.85
+    }
+  },
+  {
+    "review_id": "rev_003",
+    "analysis": {
+      "sentiment": "positive",
+      "key_topics": [
+        "ui"
+      ],
+      "response_recommendation": "Thank you for your positive feedback! We appreciate your feedback about the user interface.",
+      "urgency_score": 1
+    },
+    "confidence_scores": {
+      "sentiment": 1.0,
+      "topic_accuracy": 0.85
+    }
+  }
+]

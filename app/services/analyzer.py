@@ -1,6 +1,4 @@
-from transformers import pipeline, AutoModelForSequenceClassification, AutoTokenizer
-from bertopic import BertopicModel
-import torch
+from textblob import TextBlob
 import numpy as np
 from app.models.review import ReviewAnalysis, ConfidenceScores
 from typing import Optional, Dict, Any
@@ -10,17 +8,8 @@ logger = logging.getLogger(__name__)
 
 class ReviewAnalyzer:
     def __init__(self):
-        # Initialize models
-        self.sentiment_analyzer = pipeline(
-            "sentiment-analysis",
-            model="distilbert-base-uncased-finetuned-sst-2-english",
-            device=0 if torch.cuda.is_available() else -1
-        )
-        
-        # Initialize topic model
-        self.topic_model = BertopicModel()
-        
-        # Load response generation model (using a simple template-based approach for now)
+        # No initialization needed for TextBlob
+        # Load response generation templates
         self.response_templates = {
             "positive": "Thank you for your positive feedback! {}",
             "negative": "We apologize for your experience. {}",
@@ -29,10 +18,14 @@ class ReviewAnalyzer:
     
     def analyze(self, text: str, source: Optional[str] = None, language: Optional[str] = None) -> Dict[str, Any]:
         try:
-            # Perform sentiment analysis
-            sentiment_result = self.sentiment_analyzer(text)[0]
-            sentiment = self._map_sentiment(sentiment_result["label"])
-            sentiment_confidence = sentiment_result["score"]
+            # Perform sentiment analysis using TextBlob
+            blob = TextBlob(text)
+            polarity = blob.sentiment.polarity
+            subjectivity = blob.sentiment.subjectivity
+            
+            # Map polarity to sentiment categories
+            sentiment = self._map_sentiment(polarity)
+            sentiment_confidence = abs(polarity)  # Use absolute polarity as confidence
             
             # Extract key topics
             topics = self._extract_topics(text)
@@ -52,7 +45,7 @@ class ReviewAnalyzer:
             )
             
             confidence_scores = ConfidenceScores(
-                sentiment=sentiment_confidence,
+                sentiment=float(sentiment_confidence),
                 topic_accuracy=0.85  # This would be dynamic in a production environment
             )
             
@@ -65,11 +58,11 @@ class ReviewAnalyzer:
             logger.error(f"Error in review analysis: {str(e)}")
             raise
     
-    def _map_sentiment(self, label: str) -> str:
-        # Map the model's output to our API's sentiment categories
-        if label == "POSITIVE":
+    def _map_sentiment(self, polarity: float) -> str:
+        # Map TextBlob polarity to our sentiment categories
+        if polarity > 0.1:
             return "positive"
-        elif label == "NEGATIVE":
+        elif polarity < -0.1:
             return "negative"
         return "mixed"
     

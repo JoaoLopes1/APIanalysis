@@ -1,0 +1,29 @@
+[
+    {
+        "review_id": "rev_001",
+        "text": "The app is great but crashes sometimes during payment. Love the design though!",
+        "metadata": {
+            "source": "app_store",
+            "language": "en",
+            "timestamp": "2024-01-15T10:30:00Z"
+        }
+    },
+    {
+        "review_id": "rev_002",
+        "text": "Very slow performance when loading images. UI is clean but functionality needs work.",
+        "metadata": {
+            "source": "play_store",
+            "language": "en",
+            "timestamp": "2024-01-15T11:45:00Z"
+        }
+    },
+    {
+        "review_id": "rev_003",
+        "text": "Best app I've used for task management! The interface is intuitive and responsive.",
+        "metadata": {
+            "source": "web",
+            "language": "en",
+            "timestamp": "2024-01-15T12:15:00Z"
+        }
+    }
+] 

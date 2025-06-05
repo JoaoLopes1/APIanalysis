@@ -38,7 +38,7 @@ async def analyze_review(
         validate_token(credentials.credentials)
         
         # Perform the analysis
-        analysis_result = analyzer.analyze(
+        result = analyzer.analyze(
             text=review.text,
             source=review.metadata.source if review.metadata else None,
             language=review.metadata.language if review.metadata else None
@@ -47,15 +47,15 @@ async def analyze_review(
         # Construct the response
         response = ReviewResponse(
             review_id=review.review_id,
-            analysis=analysis_result.analysis,
-            confidence_scores=analysis_result.confidence_scores
+            analysis=result["analysis"],
+            confidence_scores=result["confidence_scores"]
         )
         
         return response
         
     except Exception as e:
         logger.error(f"Error processing review: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/health")
 async def health_check():
