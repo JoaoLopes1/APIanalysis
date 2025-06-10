@@ -10,6 +10,7 @@ from datetime import datetime
 import logging
 from concurrent.futures import ThreadPoolExecutor
 import sys
+from app.models.review import SentimentAnalysisInput, RedditPost, ReviewMetadata
 
 # Configure logging
 logging.basicConfig(
@@ -33,64 +34,91 @@ class ReviewProcessor:
             "Content-Type": "application/json"
         }
 
-    async def process_review(self, session: aiohttp.ClientSession, review: Dict) -> Dict:
-        """Process a single review."""
+    async def process_post(self, session: aiohttp.ClientSession, post_dict: Dict) -> Dict:
+        """Process a single Reddit post."""
         try:
-            async with session.post(self.api_url, json=review, headers=self.headers) as response:
+            # Convert dictionary to RedditPost model
+            post = RedditPost(**post_dict)
+            
+            # Combine title and text for sentiment analysis
+            combined_text = f"{post.title}\n\n{post.text}" if post.text else post.title
+            
+            # Create metadata
+            metadata = ReviewMetadata(
+                source="reddit",
+                subreddit=post.subreddit,
+                score=post.score,
+                upvote_ratio=post.upvote_ratio,
+                num_comments=post.num_comments,
+                created_utc=post.created_utc
+            )
+            
+            review_data = {
+                "review_id": post.id,
+                "text": combined_text,
+                "metadata": metadata.dict()
+            }
+            
+            async with session.post(self.api_url, json=review_data, headers=self.headers) as response:
                 result = await response.json()
                 if response.status != 200:
-                    logger.error(f"Error processing review {review.get('review_id')}: {result}")
-                    return {"review_id": review.get("review_id"), "error": result}
+                    logger.error(f"Error processing post {post.id}: {result}")
+                    return {"review_id": post.id, "error": result}
                 return result
         except Exception as e:
-            logger.error(f"Exception processing review {review.get('review_id')}: {str(e)}")
-            return {"review_id": review.get("review_id"), "error": str(e)}
+            post_id = post_dict.get('id', 'unknown')
+            logger.error(f"Exception processing post {post_id}: {str(e)}")
+            return {"review_id": post_id, "error": str(e)}
 
-    async def process_batch(self, reviews: List[Dict]) -> List[Dict]:
-        """Process a batch of reviews concurrently."""
+    async def process_batch(self, posts: List[Dict]) -> List[Dict]:
+        """Process a batch of Reddit posts concurrently."""
         async with aiohttp.ClientSession() as session:
-            tasks = [self.process_review(session, review) for review in reviews]
+            tasks = [self.process_post(session, post) for post in posts]
             return await asyncio.gather(*tasks)
 
-    def validate_review(self, review: Dict) -> bool:
-        """Validate review data structure."""
-        required_fields = {"review_id", "text"}
-        return all(field in review for field in required_fields)
+    def validate_input(self, data: Dict) -> bool:
+        """Validate input data structure."""
+        try:
+            SentimentAnalysisInput(**data)
+            return True
+        except Exception as e:
+            logger.error(f"Validation error: {str(e)}")
+            return False
 
     async def process_file(self, file_path: str) -> Dict:
-        """Process all reviews from a JSON file."""
+        """Process all posts from a JSON file."""
         try:
             # Load and validate JSON file
             with open(file_path, 'r', encoding='utf-8') as f:
-                reviews = json.load(f)
+                data = json.load(f)
 
-            if not isinstance(reviews, list):
-                reviews = [reviews]
+            if not self.validate_input(data):
+                raise ValueError("Invalid input data structure")
 
-            # Validate reviews
-            valid_reviews = []
-            for review in reviews:
-                if self.validate_review(review):
-                    valid_reviews.append(review)
-                else:
-                    logger.warning(f"Invalid review structure: {review}")
-
+            # Extract posts from the Reddit data
+            posts = data["raw_data"]["reddit"]["posts"]
+            
             # Process in batches
             results = []
-            for i in range(0, len(valid_reviews), self.batch_size):
-                batch = valid_reviews[i:i + self.batch_size]
+            for i in range(0, len(posts), self.batch_size):
+                batch = posts[i:i + self.batch_size]
                 batch_results = await self.process_batch(batch)
                 results.extend(batch_results)
-                logger.info(f"Processed batch {i//self.batch_size + 1}/{(len(valid_reviews) + self.batch_size - 1)//self.batch_size}")
+                logger.info(f"Processed batch {i//self.batch_size + 1}/{(len(posts) + self.batch_size - 1)//self.batch_size}")
 
             # Save results
             output_file = f"results_{Path(file_path).stem}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
             with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(results, f, indent=2)
+                json.dump({
+                    "query": data["query"],
+                    "timestamp": data["timestamp"],
+                    "platforms": data["platforms"],
+                    "results": results
+                }, f, indent=2)
 
             return {
-                "total_reviews": len(reviews),
-                "processed_reviews": len(results),
+                "total_posts": len(posts),
+                "processed_posts": len(results),
                 "output_file": output_file
             }
 
@@ -102,9 +130,9 @@ class ReviewProcessor:
             raise
 
 def main():
-    parser = argparse.ArgumentParser(description="Process reviews from JSON files")
-    parser.add_argument("file", help="JSON file containing reviews")
-    parser.add_argument("--batch-size", type=int, default=10, help="Number of reviews to process in each batch")
+    parser = argparse.ArgumentParser(description="Process Reddit posts for sentiment analysis")
+    parser.add_argument("file", help="JSON file containing Reddit posts")
+    parser.add_argument("--batch-size", type=int, default=10, help="Number of posts to process in each batch")
     parser.add_argument("--max-concurrent", type=int, default=5, help="Maximum number of concurrent requests")
     parser.add_argument("--api-url", default="http://localhost:8000/analyze-review", help="API endpoint URL")
     

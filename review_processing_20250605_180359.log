@@ -1,2 +1,0 @@
-2025-06-05 18:04:01,304 - INFO - Processed batch 1/1
-2025-06-05 18:04:01,307 - INFO - Processing completed: {'total_reviews': 3, 'processed_reviews': 3, 'output_file': 'results_example_reviews_20250605_180401.json'}

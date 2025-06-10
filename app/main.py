@@ -40,8 +40,7 @@ async def analyze_review(
         # Perform the analysis
         result = analyzer.analyze(
             text=review.text,
-            source=review.metadata.source if review.metadata else None,
-            language=review.metadata.language if review.metadata else None
+            source=review.metadata.source if review.metadata else None
         )
         
         # Construct the response
